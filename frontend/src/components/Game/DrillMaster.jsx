@@ -95,7 +95,7 @@ const DrillMaster = () => {
         ...prev,
         board: applyGravity(currentBoard)
       }));
-    }, 125); // 0.125 second delay
+    }, 1000); // 1 second delay
   }, [applyGravity]);
 
   const handleBlockClick = useCallback((x, y) => {
