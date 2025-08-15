@@ -389,7 +389,7 @@ const DrillMaster = () => {
       
       // Apply gravity after a delay if blocks were destroyed
       if (shouldApplyGravity) {
-        applyGravityWithDelay(newBoard, newState);
+        applyGravityWithDelay(newBoard);
       }
       
       return newState;
