@@ -149,15 +149,44 @@ const DrillMaster = () => {
     return newBoard;
   }, []);
 
+  // Apply gravity to player - falls until landing on solid block
+  const applyPlayerGravity = useCallback((gameState) => {
+    const { board, player } = gameState;
+    let newPlayerY = player.y;
+    
+    // Make player fall until they hit a solid block or reach bottom
+    while (newPlayerY + 1 < GAME_CONFIG.boardHeight && 
+           board[newPlayerY + 1][player.x].type === BLOCK_TYPES.EMPTY) {
+      newPlayerY++;
+    }
+    
+    // If player position changed, update depth
+    const newDepth = Math.max(gameState.hud.depth, (newPlayerY - 4) * 10);
+    
+    return {
+      ...gameState,
+      player: { ...player, y: newPlayerY },
+      hud: {
+        ...gameState.hud,
+        depth: newDepth
+      }
+    };
+  }, []);
+
   // Apply gravity with delay
-  const applyGravityWithDelay = useCallback((currentBoard) => {
+  const applyGravityWithDelay = useCallback((currentBoard, currentGameState) => {
     setTimeout(() => {
-      setGameState(prev => ({
-        ...prev,
-        board: applyGravity(currentBoard)
-      }));
+      setGameState(prev => {
+        const boardAfterGravity = applyGravity(currentBoard);
+        const stateWithNewBoard = {
+          ...prev,
+          board: boardAfterGravity
+        };
+        // Apply player gravity after block gravity
+        return applyPlayerGravity(stateWithNewBoard);
+      });
     }, 1000); // 1 second delay
-  }, [applyGravity]);
+  }, [applyGravity, applyPlayerGravity]);
 
   const handleBlockClick = useCallback((x, y) => {
     if (!isPlaying || gameState.gameStatus !== 'playing') return;
