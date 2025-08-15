@@ -371,36 +371,30 @@ const DrillMaster = () => {
         }
       }
       
-      // Apply gravity - player falls down if there's empty space below
-      let finalY = newY;
-      while (finalY + 1 < GAME_CONFIG.boardHeight && 
-             newBoard[finalY + 1][newX].type === BLOCK_TYPES.EMPTY) {
-        finalY++;
-      }
-      
-      // Calculate depth based on how deep player has gone
-      const newDepth = Math.max(prev.hud.depth, (finalY - 4) * 10);
-      
-      const newState = {
+      // Create the new state
+      let newState = {
         ...prev,
         board: newBoard,
-        player: { ...prev.player, x: newX, y: finalY },
+        player: { ...prev.player, x: newX, y: newY },
         hud: {
           ...prev.hud,
           score: newScore,
           oxygen: newOxygen,
-          depth: newDepth
+          depth: prev.hud.depth
         }
       };
       
+      // Apply player gravity - player falls through empty space
+      newState = applyPlayerGravity(newState);
+      
       // Apply gravity after a delay if blocks were destroyed
       if (shouldApplyGravity) {
-        applyGravityWithDelay(newBoard);
+        applyGravityWithDelay(newBoard, newState);
       }
       
       return newState;
     });
-  }, [isPlaying, gameState.gameStatus, findConnectedBlocks, applyGravityWithDelay, toast]);
+  }, [isPlaying, gameState.gameStatus, findConnectedBlocks, applyGravityWithDelay, applyPlayerGravity, toast]);
 
   const handlePause = () => {
     setIsPlaying(!isPlaying);
