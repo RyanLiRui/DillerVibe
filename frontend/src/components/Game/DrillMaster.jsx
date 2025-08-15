@@ -58,6 +58,46 @@ const DrillMaster = () => {
     return connected;
   }, []);
 
+  // Apply gravity to unsupported blocks
+  const applyGravity = useCallback((board) => {
+    const newBoard = [...board.map(row => [...row])];
+    let blocksHalfallen = true;
+    
+    while (blocksHalfallen) {
+      blocksHalfallen = false;
+      
+      // Check from bottom to top, right to left
+      for (let y = GAME_CONFIG.boardHeight - 2; y >= 0; y--) {
+        for (let x = 0; x < GAME_CONFIG.boardWidth; x++) {
+          const block = newBoard[y][x];
+          
+          // Skip empty blocks
+          if (block.type === BLOCK_TYPES.EMPTY) continue;
+          
+          // Check if there's empty space below
+          if (newBoard[y + 1][x].type === BLOCK_TYPES.EMPTY) {
+            // Move block down
+            newBoard[y + 1][x] = { ...block };
+            newBoard[y][x] = { type: BLOCK_TYPES.EMPTY, hits: 0, id: `empty-${x}-${y}-${Date.now()}` };
+            blocksHalfallen = true;
+          }
+        }
+      }
+    }
+    
+    return newBoard;
+  }, []);
+
+  // Apply gravity with delay
+  const applyGravityWithDelay = useCallback((currentBoard) => {
+    setTimeout(() => {
+      setGameState(prev => ({
+        ...prev,
+        board: applyGravity(currentBoard)
+      }));
+    }, 125); // 0.125 second delay
+  }, [applyGravity]);
+
   const handleBlockClick = useCallback((x, y) => {
     if (!isPlaying || gameState.gameStatus !== 'playing') return;
     
