@@ -61,6 +61,59 @@ const DrillMaster = () => {
   // Apply gravity to unsupported blocks
   const applyGravity = useCallback((board) => {
     const newBoard = [...board.map(row => [...row])];
+    
+    // First, identify all supported blocks
+    const getSupportedBlocks = (board) => {
+      const supported = new Set();
+      const visited = new Set();
+      
+      // Helper function to find horizontally connected blocks of same color
+      const findHorizontalChain = (x, y, color, chain = new Set()) => {
+        const key = `${x},${y}`;
+        if (chain.has(key) || x < 0 || x >= GAME_CONFIG.boardWidth || y < 0 || y >= GAME_CONFIG.boardHeight) {
+          return chain;
+        }
+        if (board[y][x].type !== color || board[y][x].type === BLOCK_TYPES.EMPTY) {
+          return chain;
+        }
+        
+        chain.add(key);
+        
+        // Check left and right neighbors only
+        findHorizontalChain(x - 1, y, color, chain);
+        findHorizontalChain(x + 1, y, color, chain);
+        
+        return chain;
+      };
+      
+      // First pass: Mark directly supported blocks (bottom row or blocks with support below)
+      for (let y = 0; y < GAME_CONFIG.boardHeight; y++) {
+        for (let x = 0; x < GAME_CONFIG.boardWidth; x++) {
+          const block = board[y][x];
+          if (block.type === BLOCK_TYPES.EMPTY) continue;
+          
+          const key = `${x},${y}`;
+          
+          // Block is directly supported if:
+          // 1. It's on the bottom row, OR
+          // 2. There's a solid block directly below it
+          const isDirectlySupported = (
+            y === GAME_CONFIG.boardHeight - 1 || 
+            (y + 1 < GAME_CONFIG.boardHeight && board[y + 1][x].type !== BLOCK_TYPES.EMPTY)
+          );
+          
+          if (isDirectlySupported) {
+            // Find all horizontally connected blocks of the same color
+            const horizontalChain = findHorizontalChain(x, y, block.type);
+            horizontalChain.forEach(blockKey => supported.add(blockKey));
+          }
+        }
+      }
+      
+      return supported;
+    };
+    
+    const supportedBlocks = getSupportedBlocks(newBoard);
     let blocksHalfallen = true;
     
     while (blocksHalfallen) {
@@ -70,9 +123,10 @@ const DrillMaster = () => {
       for (let y = GAME_CONFIG.boardHeight - 2; y >= 0; y--) {
         for (let x = 0; x < GAME_CONFIG.boardWidth; x++) {
           const block = newBoard[y][x];
+          const key = `${x},${y}`;
           
-          // Skip empty blocks
-          if (block.type === BLOCK_TYPES.EMPTY) continue;
+          // Skip empty blocks or supported blocks
+          if (block.type === BLOCK_TYPES.EMPTY || supportedBlocks.has(key)) continue;
           
           // Check if there's empty space below
           if (newBoard[y + 1][x].type === BLOCK_TYPES.EMPTY) {
@@ -82,6 +136,13 @@ const DrillMaster = () => {
             blocksHalfallen = true;
           }
         }
+      }
+      
+      // Recalculate supported blocks after each gravity pass
+      if (blocksHalfallen) {
+        const newSupportedBlocks = getSupportedBlocks(newBoard);
+        supportedBlocks.clear();
+        newSupportedBlocks.forEach(key => supportedBlocks.add(key));
       }
     }
     
