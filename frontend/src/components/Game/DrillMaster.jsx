@@ -173,8 +173,8 @@ const DrillMaster = () => {
     };
   }, []);
 
-  // Apply gravity with delay
-  const applyGravityWithDelay = useCallback((currentBoard, currentGameState) => {
+  // Apply gravity with delay for blocks only
+  const applyGravityWithDelay = useCallback((currentBoard) => {
     setTimeout(() => {
       setGameState(prev => {
         const boardAfterGravity = applyGravity(currentBoard);
@@ -182,10 +182,10 @@ const DrillMaster = () => {
           ...prev,
           board: boardAfterGravity
         };
-        // Apply player gravity after block gravity
+        // Apply player gravity immediately after block gravity (no additional delay)
         return applyPlayerGravity(stateWithNewBoard);
       });
-    }, 1000); // 1 second delay
+    }, 5000); // 5 second delay for blocks
   }, [applyGravity, applyPlayerGravity]);
 
   const handleBlockClick = useCallback((x, y) => {
