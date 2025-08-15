@@ -196,6 +196,7 @@ const DrillMaster = () => {
       let newBoard = [...prev.board.map(row => [...row])];
       let newOxygen = prev.hud.oxygen;
       let newScore = prev.hud.score;
+      let shouldApplyGravity = false;
       
       switch (direction) {
         case 'left':
@@ -222,12 +223,19 @@ const DrillMaster = () => {
                   blockBelow.type = BLOCK_TYPES.EMPTY;
                   newScore += 50;
                   newY = y + 1; // Move into the now-empty space
+                  shouldApplyGravity = true;
                 }
               } else if (blockBelow.type === BLOCK_TYPES.AIR_CAPSULE) {
                 blockBelow.type = BLOCK_TYPES.EMPTY;
                 newOxygen = Math.min(prev.hud.maxOxygen, newOxygen + 20);
                 newScore += 100;
                 newY = y + 1; // Move into the space
+                shouldApplyGravity = true;
+                toast({
+                  title: "Air Refill!",
+                  description: "+20 Oxygen",
+                  className: "bg-blue-600 text-white"
+                });
               } else {
                 // Regular colored block
                 const connected = findConnectedBlocks(newBoard, x, y + 1, blockBelow.type);
@@ -239,11 +247,18 @@ const DrillMaster = () => {
                   });
                   newScore += connected.length * 20;
                   newOxygen = Math.max(0, newOxygen - 2); // Small oxygen cost
+                  shouldApplyGravity = true;
+                  toast({
+                    title: `Chain Reaction!`,
+                    description: `${connected.length} blocks destroyed! +${connected.length * 20} points`,
+                    className: "bg-green-600 text-white"
+                  });
                 } else {
                   // Single block destruction
                   blockBelow.type = BLOCK_TYPES.EMPTY;
                   newScore += 10;
                   newOxygen = Math.max(0, newOxygen - 1); // Small oxygen cost
+                  shouldApplyGravity = true;
                 }
                 newY = y + 1; // Move into the drilled space
               }
@@ -276,7 +291,7 @@ const DrillMaster = () => {
       // Calculate depth based on how deep player has gone
       const newDepth = Math.max(prev.hud.depth, (finalY - 4) * 10);
       
-      return {
+      const newState = {
         ...prev,
         board: newBoard,
         player: { ...prev.player, x: newX, y: finalY },
@@ -287,8 +302,15 @@ const DrillMaster = () => {
           depth: newDepth
         }
       };
+      
+      // Apply gravity after a delay if blocks were destroyed
+      if (shouldApplyGravity) {
+        applyGravityWithDelay(newBoard);
+      }
+      
+      return newState;
     });
-  }, [isPlaying, gameState.gameStatus, findConnectedBlocks]);
+  }, [isPlaying, gameState.gameStatus, findConnectedBlocks, applyGravityWithDelay, toast]);
 
   const handlePause = () => {
     setIsPlaying(!isPlaying);
