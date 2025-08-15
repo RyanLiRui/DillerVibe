@@ -141,6 +141,9 @@ const DrillMaster = () => {
       const { x, y } = prev.player;
       let newX = x;
       let newY = y;
+      let newBoard = [...prev.board.map(row => [...row])];
+      let newOxygen = prev.hud.oxygen;
+      let newScore = prev.hud.score;
       
       switch (direction) {
         case 'left':
@@ -150,15 +153,48 @@ const DrillMaster = () => {
           newX = Math.min(GAME_CONFIG.boardWidth - 1, x + 1);
           break;
         case 'drill':
-          // Move player down if space below is empty or can be drilled
+          // Drill down through blocks
           if (y + 1 < GAME_CONFIG.boardHeight) {
-            const blockBelow = prev.board[y + 1][x];
+            const blockBelow = newBoard[y + 1][x];
+            
             if (blockBelow.type === BLOCK_TYPES.EMPTY) {
+              // Move down into empty space
               newY = y + 1;
             } else {
-              // Drill the block below
-              handleBlockClick(x, y + 1);
-              return prev; // Don't move player yet
+              // Drill the block below and move into it
+              if (blockBelow.type === BLOCK_TYPES.BROWN_X) {
+                blockBelow.hits -= 1;
+                newOxygen = Math.max(0, newOxygen - 5); // Oxygen cost for brown blocks
+                
+                if (blockBelow.hits <= 0) {
+                  blockBelow.type = BLOCK_TYPES.EMPTY;
+                  newScore += 50;
+                  newY = y + 1; // Move into the now-empty space
+                }
+              } else if (blockBelow.type === BLOCK_TYPES.AIR_CAPSULE) {
+                blockBelow.type = BLOCK_TYPES.EMPTY;
+                newOxygen = Math.min(prev.hud.maxOxygen, newOxygen + 20);
+                newScore += 100;
+                newY = y + 1; // Move into the space
+              } else {
+                // Regular colored block
+                const connected = findConnectedBlocks(newBoard, x, y + 1, blockBelow.type);
+                
+                if (connected.length >= GAME_CONFIG.minConnectedBlocks) {
+                  // Chain reaction!
+                  connected.forEach(({ x: cx, y: cy }) => {
+                    newBoard[cy][cx].type = BLOCK_TYPES.EMPTY;
+                  });
+                  newScore += connected.length * 20;
+                  newOxygen = Math.max(0, newOxygen - 2); // Small oxygen cost
+                } else {
+                  // Single block destruction
+                  blockBelow.type = BLOCK_TYPES.EMPTY;
+                  newScore += 10;
+                  newOxygen = Math.max(0, newOxygen - 1); // Small oxygen cost
+                }
+                newY = y + 1; // Move into the drilled space
+              }
             }
           }
           break;
@@ -166,18 +202,41 @@ const DrillMaster = () => {
           return prev;
       }
       
-      // Check if new position is valid (not occupied by a solid block)
-      if (newY < GAME_CONFIG.boardHeight && 
-          prev.board[newY][newX].type === BLOCK_TYPES.EMPTY) {
-        return {
-          ...prev,
-          player: { ...prev.player, x: newX, y: newY }
-        };
+      // Check if horizontal movement is valid (not occupied by a solid block)
+      if (direction === 'left' || direction === 'right') {
+        if (newX >= 0 && newX < GAME_CONFIG.boardWidth && 
+            newY < GAME_CONFIG.boardHeight && 
+            newBoard[newY][newX].type === BLOCK_TYPES.EMPTY) {
+          // Valid horizontal movement
+        } else {
+          // Can't move horizontally into solid block
+          newX = x;
+        }
       }
       
-      return prev;
+      // Apply gravity - player falls down if there's empty space below
+      let finalY = newY;
+      while (finalY + 1 < GAME_CONFIG.boardHeight && 
+             newBoard[finalY + 1][newX].type === BLOCK_TYPES.EMPTY) {
+        finalY++;
+      }
+      
+      // Calculate depth based on how deep player has gone
+      const newDepth = Math.max(prev.hud.depth, (finalY - 4) * 10);
+      
+      return {
+        ...prev,
+        board: newBoard,
+        player: { ...prev.player, x: newX, y: finalY },
+        hud: {
+          ...prev.hud,
+          score: newScore,
+          oxygen: newOxygen,
+          depth: newDepth
+        }
+      };
     });
-  }, [isPlaying, gameState.gameStatus, handleBlockClick]);
+  }, [isPlaying, gameState.gameStatus, findConnectedBlocks]);
 
   const handlePause = () => {
     setIsPlaying(!isPlaying);
