@@ -116,6 +116,7 @@ const DrillMaster = () => {
       
       let newScore = prev.hud.score;
       let newOxygen = prev.hud.oxygen;
+      let shouldApplyGravity = false;
       
       // Handle different block types
       if (block.type === BLOCK_TYPES.BROWN_X) {
@@ -125,11 +126,13 @@ const DrillMaster = () => {
         if (block.hits <= 0) {
           block.type = BLOCK_TYPES.EMPTY;
           newScore += 50;
+          shouldApplyGravity = true;
         }
       } else if (block.type === BLOCK_TYPES.AIR_CAPSULE) {
         block.type = BLOCK_TYPES.EMPTY;
         newOxygen = Math.min(prev.hud.maxOxygen, newOxygen + 20);
         newScore += 100;
+        shouldApplyGravity = true;
         toast({
           title: "Air Refill!",
           description: "+20 Oxygen",
@@ -145,6 +148,7 @@ const DrillMaster = () => {
             newBoard[cy][cx].type = BLOCK_TYPES.EMPTY;
           });
           newScore += connected.length * 20;
+          shouldApplyGravity = true;
           
           toast({
             title: `Chain Reaction!`,
@@ -155,13 +159,14 @@ const DrillMaster = () => {
           // Single block destruction
           block.type = BLOCK_TYPES.EMPTY;
           newScore += 10;
+          shouldApplyGravity = true;
         }
       }
       
       // Calculate depth based on player position
       const newDepth = Math.max(prev.hud.depth, (playerY - 4) * 10);
       
-      return {
+      const newState = {
         ...prev,
         board: newBoard,
         hud: {
@@ -171,8 +176,15 @@ const DrillMaster = () => {
           depth: newDepth
         }
       };
+      
+      // Apply gravity after a delay if blocks were destroyed
+      if (shouldApplyGravity) {
+        applyGravityWithDelay(newBoard);
+      }
+      
+      return newState;
     });
-  }, [isPlaying, gameState.gameStatus, gameState.player, findConnectedBlocks, toast]);
+  }, [isPlaying, gameState.gameStatus, gameState.player, findConnectedBlocks, toast, applyGravityWithDelay]);
 
   const handlePlayerMove = useCallback((direction) => {
     if (!isPlaying || gameState.gameStatus !== 'playing') return;
